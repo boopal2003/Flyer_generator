@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FlyerGen</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .thumb { width: 72px; height: 72px; object-fit: cover; border-radius: .5rem; }
+    .grid-cols-auto { grid-template-columns: 72px 1fr; }
+    .tile { border: 1px solid #e2e8f0; border-radius: .75rem; padding: .75rem; cursor: pointer; background: white; }
+    .tile.active { outline: 2px solid #0ea5e9; border-color: #0ea5e9; box-shadow: 0 0 0 4px rgba(14,165,233,.15); }
+    .card { border: 1px solid #e5e7eb; border-radius: .75rem; padding: .75rem; text-align: center; cursor: pointer; background: white; }
+    .card:hover { box-shadow: 0 4px 16px rgba(2,6,23,.06); }
+    .card.active { outline: 2px solid #0ea5e9; border-color: #0ea5e9; }
+    .badge { font-size: .65rem; padding: .15rem .4rem; border-radius: .375rem; background: #f1f5f9; color: #0f172a; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <div class="max-w-6xl mx-auto p-6 space-y-6">
+    <header class="flex items-center justify-between">
+      <h1 class="text-3xl font-bold">FlyerGen</h1>
+      <span class="text-sm text-slate-500">Direct Flyer – GPT-Image-1</span>
+    </header>
+
+    <!-- Row 1: Upload (PDF or Images) -->
+    <section class="bg-white rounded-2xl shadow p-4 space-y-4">
+      <h2 class="font-semibold">1) Upload Artwork</h2>
+
+      <div class="grid sm:grid-cols-2 gap-4">
+        <!-- PDF uploader -->
+        <div>
+          <div class="text-sm font-medium mb-1">A) Upload PDF (dieline with measurements)</div>
+          <input id="pdf" type="file" accept="application/pdf" class="block w-full" />
+          <button id="btnPdf" type="button" class="mt-2 rounded-xl px-3 py-2 bg-slate-900 text-white text-sm">
+            Extract Panels from PDF
+          </button>
+          <div id="pdfStatus" class="text-xs text-slate-500 mt-1"></div>
+        </div>
+
+        <!-- Image uploader -->
+        <div>
+          <div class="text-sm font-medium mb-1">B) Or upload images (PNG/JPG)</div>
+          <input id="art" type="file" accept="image/*" multiple class="block w-full" />
+        </div>
+      </div>
+
+      <div class="pt-2">
+        <div class="text-sm font-medium mb-1">Detected / Added Panels</div>
+        <div id="files" class="space-y-2"></div>
+      </div>
+    </section>
+
+    <!-- Row 2: Template strip -->
+    <section class="bg-white rounded-2xl shadow p-4 space-y-3">
+      <h2 class="font-semibold">2) Choose Template</h2>
+      <div class="flex gap-2 overflow-x-auto pb-1">
+        <button class="tile active" data-template="square_post">SQUARE POST<br><span class="text-xs text-slate-500">IG / FB / LinkedIn / X</span></button>
+        <button class="tile" data-template="landscape_post">LANDSCAPE POST<br><span class="text-xs text-slate-500">FB / LinkedIn / X</span></button>
+        <button class="tile" data-template="story">STORY<br><span class="text-xs text-slate-500">IG / FB</span></button>
+        <button class="tile" data-template="carousel">CAROUSEL<br><span class="text-xs text-slate-500">IG / LinkedIn</span></button>
+        <button class="tile" data-template="thumbnail">THUMBNAIL<br><span class="text-xs text-slate-500">YouTube</span></button>
+        <button class="tile" data-template="youtube_banner">YOUTUBE BANNER</button>
+        <button class="tile" data-template="web_banner">WEB BANNER</button>
+        <button class="tile" data-template="quote">QUOTE</button>
+        <button class="tile" data-template="presentation">PRESENTATION</button>
+        <button class="tile" data-template="document">DOCUMENT</button>
+        <button class="tile" data-template="print">PRINT</button>
+        <button class="tile" data-template="infographic">INFOGRAPHIC</button>
+      </div>
+    </section>
+
+    <!-- Row 3: Shape cards -->
+    <section class="bg-white rounded-2xl shadow p-4 space-y-3">
+      <h2 class="font-semibold">3) Shape</h2>
+      <div id="shapeCards" class="grid sm:grid-cols-6 grid-cols-3 gap-2">
+        <div class="card active" data-value="bottle">Bottle</div>
+        <div class="card" data-value="box">Box</div>
+        <div class="card" data-value="pouch">Pouch</div>
+        <div class="card" data-value="can">Can</div>
+        <div class="card" data-value="jar">Jar</div>
+        <div class="card" data-value="tube">Tube</div>
+        <div class="card" data-value="sachet">Sachet</div>
+        <div class="card" data-value="carton">Carton</div>
+        <div class="card" data-value="cup">Cup</div>
+      </div>
+    </section>
+
+    <!-- Row 4: Sector cards -->
+    <section class="bg-white rounded-2xl shadow p-4 space-y-3">
+      <h2 class="font-semibold">4) Sector</h2>
+      <div id="sectorCards" class="grid sm:grid-cols-4 grid-cols-2 gap-2">
+        <div class="card active" data-value="Beverages">Beverages</div>
+        <div class="card" data-value="Food">Food</div>
+        <div class="card" data-value="Pharma">Pharma</div>
+        <div class="card" data-value="Cosmetics">Cosmetics</div>
+      </div>
+    </section>
+
+    <!-- Row 5: Platform cards -->
+    <section class="bg-white rounded-2xl shadow p-4 space-y-3">
+      <h2 class="font-semibold">5) Platform</h2>
+      <div id="platformCards" class="grid sm:grid-cols-6 grid-cols-3 gap-2">
+        <div class="card active" data-value="instagram">Instagram <span class="badge">visual</span></div>
+        <div class="card" data-value="facebook">Facebook <span class="badge">broad</span></div>
+        <div class="card" data-value="linkedin">LinkedIn <span class="badge">pro</span></div>
+        <div class="card" data-value="x">X / Twitter <span class="badge">short</span></div>
+        <div class="card" data-value="tiktok">TikTok <span class="badge">youth</span></div>
+        <div class="card" data-value="youtube">YouTube <span class="badge">video</span></div>
+        <div class="card" data-value="web">Website <span class="badge">hero</span></div>
+      </div>
+    </section>
+
+    <section class="bg-white rounded-2xl shadow p-4 space-y-3">
+        <h2 class="font-semibold">Pose / Camera</h2>
+        <div id="poseCards" class="grid sm:grid-cols-4 grid-cols-2 gap-2">
+            <div class="card active" data-value="flat_lay">Top-Down Flat Lay</div>
+            <div class="card" data-value="front_straight">Front-On Straight</div>
+            <div class="card" data-value="angled_hero">Angled Hero</div>
+            <div class="card" data-value="isometric">Isometric</div>
+        </div>
+    </section>
+
+    <!-- Row 6: Theme -->
+    <section class="bg-white rounded-2xl shadow p-4 space-y-3">
+      <h2 class="font-semibold">6) Style / Theme</h2>
+      <textarea id="style" class="w-full border rounded-xl p-2" rows="3"
+        placeholder="e.g., premium minimal, festive Diwali, rustic farm-to-table, clinical clean ..."></textarea>
+    </section>
+
+    <!-- Row 7: Generate -->
+    <section class="bg-white rounded-2xl shadow p-4 space-y-3">
+      <h2 class="font-semibold">7) Generate</h2>
+      <button id="btnFlyer" type="button" class="w-full rounded-2xl px-4 py-2 bg-slate-900 text-white">
+        Create Flyer
+      </button>
+      <div id="status" class="text-sm text-slate-500"></div>
+    </section>
+
+    <!-- Flyer Output (bottom) -->
+    <section class="bg-white rounded-2xl shadow p-4">
+      <h2 class="font-semibold mb-2">Final Flyer</h2>
+      <img id="flyer" class="rounded-xl w-full" />
+      <div id="actions" class="flex items-center gap-3 mt-3 hidden">
+        <button id="btnDownload" class="rounded-xl px-3 py-2 bg-green-600 text-white text-sm">
+          Download Flyer (PNG)
+        </button>
+        <button id="btnReset" class="rounded-xl px-3 py-2 bg-slate-200 text-slate-900 text-sm">
+          Clear & Try Next
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <script src="/static/js/app.js?v=8"></script>
+</body>
+</html>
