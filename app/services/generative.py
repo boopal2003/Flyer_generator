@@ -1,11 +1,13 @@
 # app/services/generative.py
+from __future__ import annotations
+
 import base64
-from openai import OpenAI
+from typing import List, Optional, Tuple
+
+from ..openai_client import get_client          # decrypts API key at runtime
 from ..prompts import FLYER_DIRECT_SYSTEM, FLYER_DIRECT_USER
 
-client = OpenAI()
-
-# Pose directives
+# ---------- Pose directives ----------
 POSE_DIRECTIVES = {
     "flat_lay": (
         "Place the product lying flat on a tabletop, camera directly above (90° top-down), "
@@ -23,9 +25,8 @@ POSE_DIRECTIVES = {
     ),
 }
 
-# Template specs:
-# - target: exact pixels for download (frontend resizes to this)
-# - model: which allowed size to ask gpt-image-1 for ("square" | "landscape" | "portrait")
+# ---------- Template specs (target download size + model-allowed render size) ----------
+# gpt-image-1 supports only these sizes: "1024x1024", "1024x1536", "1536x1024", or "auto"
 TEMPLATE_SPECS = {
     "square_post":      {"target": (1080, 1080), "model": "square"},
     "quote":            {"target": (1080, 1080), "model": "square"},
@@ -49,7 +50,13 @@ MODEL_SIZE = {
     "landscape": "1536x1024",
 }
 
-# Platform → audience hints
+ASPECT_NOTE = {
+    "square":    "Square 1:1",
+    "landscape": "Wide 3:2–16:9",
+    "portrait":  "Tall 3:4–9:16",
+}
+
+# ---------- Platform audience hints ----------
 PLATFORM_AUDIENCE = {
     "instagram": "visually stylish younger audience",
     "facebook":  "broad family-friendly audience",
@@ -60,39 +67,46 @@ PLATFORM_AUDIENCE = {
     "web":       "general consumer website visitors",
 }
 
+
 def compose_flyer_from_artworks(
-    images_b64: list[str],
-    panel_roles: list[str] | None,
+    images_b64: List[str],
+    panel_roles: Optional[List[str]],
     shape: str,
     sector: str,
     theme: str,
-    colors: list[str] | None,
+    colors: Optional[List[str]],
     template: str,
     platform: str,
     pose: str = "flat_lay",
-) -> tuple[str, int, int]:
+) -> Tuple[str, int, int]:
     """
-    Create a flyer image from artwork panels.
-    Returns (base64_png, target_width, target_height)
+    Create a flyer image from artwork panels using gpt-image-1.
+    Returns: (base64_png, target_width, target_height)
+
+    - images_b64: list of panel images (base64-encoded PNG/JPG bytes)
+    - panel_roles: matching roles like ["front","back","left","right","top","bottom","cap","generic"]
+    - template: one of TEMPLATE_SPECS keys
+    - pose: one of POSE_DIRECTIVES keys
     """
+
+    # Choose template spec and model-compatible size
     spec = TEMPLATE_SPECS.get(template) or TEMPLATE_SPECS["square_post"]
     target_w, target_h = spec["target"]
     model_size = MODEL_SIZE[spec["model"]]
-    aspect_note = {
-        "square": "Square 1:1",
-        "landscape": "Wide 3:2–16:9",
-        "portrait": "Tall 3:4–9:16",
-    }[spec["model"]]
+    aspect_note = ASPECT_NOTE[spec["model"]]
 
+    # Platform voice
     audience = PLATFORM_AUDIENCE.get(platform, "general audience, balanced tone")
 
-    # role mapping
+    # Role mapping lines (for prompt clarity)
     panel_roles = panel_roles or ["generic"] * len(images_b64)
     role_lines = [f"image[{i}] -> {r}" for i, r in enumerate(panel_roles)]
 
+    # Colors & Pose text
     col = ", ".join(colors or []) or "brand palette"
     pose_directive = POSE_DIRECTIVES.get(pose, POSE_DIRECTIVES["flat_lay"])
 
+    # Build final prompt
     prompt = (
         FLYER_DIRECT_SYSTEM
         + "\n\n"
@@ -109,14 +123,20 @@ def compose_flyer_from_artworks(
         )
     )
 
+    # Decode input images to raw bytes for the Images API
     img_inputs = [base64.b64decode(b) for b in images_b64]
 
-    # Ask the model for a supported render size close to the desired aspect.
+    # Create client lazily — this decrypts your key via get_client()
+    client = get_client()
+
+    # Call Images Edit with a supported size close to desired aspect.
     resp = client.images.edit(
         model="gpt-image-1",
         prompt=prompt,
-        image=img_inputs,
-        size=model_size,  # one of: 1024x1024, 1024x1536, 1536x1024, or "auto"
+        image=img_inputs,           # list[bytes]
+        size=model_size,            # "1024x1024" | "1024x1536" | "1536x1024" | "auto"
+        # background="transparent",  # uncomment if you want PNG with alpha
     )
 
+    # Return base64 image + the exact target pixels for client-side resizing on download
     return resp.data[0].b64_json, target_w, target_h
